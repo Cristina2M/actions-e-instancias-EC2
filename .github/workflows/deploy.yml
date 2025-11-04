@@ -14,19 +14,32 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm ci
-      - run: npm test
-      - run: npm run predeploy
-      - uses: actions/upload-artifact@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build site (dist)
+        run: npm run build || npm run predeploy
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: jsdocs
-          path: docs
+          name: build-dist
+          path: dist
+
+
+    
 
   deploy-to-ec2:
     name: Deploy to EC2
