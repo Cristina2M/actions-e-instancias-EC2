@@ -36,18 +36,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Guardar la clave PEM temporalmente
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+          path: dist
+
       - name: Create PEM key
         run: |
           echo "${{ secrets.EC2_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
-      # Subir archivos a EC2
       - name: Copy files to EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i private_key.pem -r dist/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/usr/share/nginx/html/
+          scp -o StrictHostKeyChecking=no -i private_key.pem -r dist/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ec2-user/app/
 
-      # Reiniciar Nginx (opcional)
-      - name: Restart Nginx
+      - name: Move files to Nginx and restart service
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo systemctl restart nginx"
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo rm -rf /usr/share/nginx/html/* && sudo mv /home/ec2-user/app/* /usr/share/nginx/html/ && sudo systemctl restart nginx"
