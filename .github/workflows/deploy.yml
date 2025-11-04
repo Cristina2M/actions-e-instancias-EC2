@@ -1,0 +1,53 @@
+name: CI/CD - Deploy to EC2
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - 'feature/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm test
+      - run: npm run predeploy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jsdocs
+          path: docs
+
+  deploy-to-ec2:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Guardar la clave PEM temporalmente
+      - name: Create PEM key
+        run: |
+          echo "${{ secrets.EC2_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      # Subir archivos a EC2
+      - name: Copy files to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -i private_key.pem -r dist/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/usr/share/nginx/html/
+
+      # Reiniciar Nginx (opcional)
+      - name: Restart Nginx
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo systemctl restart nginx"
